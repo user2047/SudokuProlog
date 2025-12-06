@@ -1,102 +1,151 @@
-# CLP(ℤ) &mdash; Constraint Logic Programming over Integers
+# Sudoku Solver using CLP(FD)
 
-This repository contains information about **CLP(ℤ)**.
+A Prolog-based Sudoku solver using **Constraint Logic Programming over Finite Domains (CLP(FD))** in SWI-Prolog.
 
-CLP(ℤ) requires **SICStus Prolog**.
+## Overview
 
-As of April 2020, a version of this library ships with
-Scryer&nbsp;Prolog as <tt>library(clpz)</tt>.
+This implementation demonstrates how constraint propagation and search work together to solve Sudoku puzzles efficiently. The solver uses CLP(FD) constraints to:
+- Ensure all cells contain values 1-9
+- Enforce distinctness in rows, columns, and 3×3 blocks
+- Reduce the search space before any search begins
 
-The present implementation builds upon a decade of experience with a
-precursor library which I developed for a different Prolog system.
-CLP(ℤ) is the *more recent* and conceptually *more advanced*
-implementation. To keep track of recent developments, use&nbsp;CLP(ℤ).
+## Requirements
 
-**Current developments**:
+- **SWI-Prolog** (version 7.0 or later)
+  - Download from: https://www.swi-prolog.org/download/stable
+  - The solver uses built-in libraries: `library(clpfd)` and `library(lists)`
 
-  - increase [**logical purity**](https://www.metalevel.at/prolog/purity) of the implementation
-  - work on *stronger propagation*
-  - *correct* all reported issues.
-  - *add* new constraints.
+## Usage
 
-CLP(ℤ) is being developed for inclusion in
-[**GUPU**](http://www.complang.tuwien.ac.at/ulrich/gupu/).
+### Solve with Constraints and Search
 
-An introduction to declarative integer arithmetic is available from
-[**metalevel.at/prolog/clpz**](https://www.metalevel.at/prolog/clpz)
+Run the complete solver with first-fail search strategy:
 
-**Video**: https://www.metalevel.at/prolog/videos/integer_arithmetic ![CLP(ℤ) video](figures/t_integer_arithmetic.png)
+```prolog
+?- problem(1, Rows), sudoku(Rows), 
+   maplist(labeling([ff]), Rows), 
+   maplist(portray_clause, Rows).
+```
 
-For more information about pure Prolog, read [**The Power of Prolog**](https://www.metalevel.at/prolog).
+### View Constraints Only (No Search)
 
-## Using CLP(ℤ) constraints
+See the puzzle with constraints applied but variables uninstantiated:
 
-CLP(ℤ) is an instance of the general CLP(*X*) scheme, extending logic
-programming with reasoning over specialised domains.
+```prolog
+?- problem(1, Rows), sudoku(Rows), 
+   maplist(portray_clause, Rows).
+```
 
-In the case of CLP(ℤ), the domain is the set of **integers**. CLP(ℤ)
-is a generalisation of CLP(FD) as provided by SICStus&nbsp;Prolog.
+### Visualize Constrained Domains
 
-CLP(ℤ) constraints like `(#=)/2`, `(#\=)/2`, and `(#<)/2` are meant to
-be used as more general alternatives for lower-level arithmetic
-primitives over integers. Importantly, they can be used in *all
-directions*.
+See what values are possible for each cell after constraint propagation:
 
-For example, consider a rather typical definition of `n_factorial/2`:
+```prolog
+?- problem(1, Rows), sudoku(Rows), show_domains(Rows).
+```
 
-    n_factorial(0, 1).
-    n_factorial(N, F) :-
-            N #> 0,
-            N1 #= N - 1,
-            n_factorial(N1, F1),
-            F #= N * F1.
+This shows how much the constraints reduce the search space before labeling begins.
 
-CLP(ℤ) constraints allow us to quite *freely exchange* the order
-of&nbsp;goals, obtaining for example:
+## Command Line Usage
 
-    n_factorial(0, 1).
-    n_factorial(N, F) :-
-            N #> 0,
-            N1 #= N - 1,
-            F #= N * F1,
-            n_factorial(N1, F1).
+### Full Solution
+```bash
+swipl -s sudoku.pl -g "problem(1, Rows), sudoku(Rows), maplist(labeling([ff]), Rows), maplist(portray_clause, Rows)" -t halt
+```
 
-This works in all directions, for example:
+### Show Domains
+```bash
+swipl -s sudoku.pl -g "problem(1, Rows), sudoku(Rows), show_domains(Rows)" -t halt
+```
 
-    ?- n_factorial(47, F).
-    258623241511168180642964355153611979969197632389120000000000 ;
-    false.
+## How It Works
 
-and also:
+### 1. Constraint Propagation
+The `sudoku/1` predicate sets up three types of constraints:
+- **Row constraints**: All values in each row must be distinct
+- **Column constraints**: All values in each column must be distinct  
+- **Block constraints**: All values in each 3×3 block must be distinct
 
-    ?- n_factorial(N, 1).
-    N = 0 ;
-    N = 1 ;
-    false.
+These constraints dramatically reduce possible values for each cell.
 
-and also in the most general case:
+### 2. Search (Labeling)
+The `labeling([ff], Rows)` performs search using the **first-fail** strategy:
+- Selects variables with smallest domains first
+- Makes search more efficient by failing early on wrong choices
+- Explores remaining possibilities systematically
 
-    ?- n_factorial(N, F).
-    N = 0,
-    F = 1 ;
-    N = F, F = 1 ;
-    N = F, F = 2 ;
-    N = 3,
-    F = 6 .
+### 3. The Power of CLP(FD)
+CLP(FD) constraints do the "smart" work:
+- Eliminate impossible values through propagation
+- Reduce search space from 9^81 to a manageable size
+- Most of the solving happens before search even begins!
 
-The advantage of using `(#=)/2` to express *arithmetic equality* is
-clear: It is a more general alternative for lower-level predicates.
+## Example Puzzle
 
-In addition to providing declarative integer arithmetic,
-CLP(ℤ)&nbsp;constraints are also often used to solve
-[**combinatorial&nbsp;tasks**](https://www.metalevel.at/prolog/optimization)
-with&nbsp;Prolog.
+The included puzzle (problem 1):
+```
+_ _ _ 6 _ _ 2 _ _
+8 _ 4 _ 3 _ _ _ _
+_ _ _ _ _ 9 _ _ _
+4 _ 5 _ _ _ _ _ 7
+7 1 _ _ _ _ _ _ _
+_ _ 3 _ 5 _ _ _ 8
+3 _ _ _ 7 _ _ _ 4
+_ _ _ _ _ 1 9 _ _
+_ _ _ 2 _ _ _ 6 _
+```
 
-## Example programs
+Solution:
+```
+9 7 1 6 8 4 2 3 5
+8 6 4 5 3 2 7 9 1
+5 3 2 7 1 9 4 8 6
+4 8 5 9 6 3 1 2 7
+7 1 6 4 2 8 3 5 9
+2 9 3 1 5 7 6 4 8
+3 2 9 8 7 6 5 1 4
+6 5 8 3 4 1 9 7 2
+1 4 7 2 9 5 8 6 3
+```
 
-This repository contains several example programs. The main predicates
-are all completely pure and can be used as true relations. This means
-that you can use the *same* program to:
+## Adding Your Own Puzzles
+
+Define new puzzles using the `problem/2` predicate:
+
+```prolog
+problem(2, P) :-
+    P = [[_,_,_,_,_,_,_,_,_],
+         [_,_,_,_,_,_,_,_,_],
+         % ... define your puzzle here
+         [_,_,_,_,_,_,_,_,_]].
+```
+
+Then solve with: `problem(2, Rows), sudoku(Rows), maplist(labeling([ff]), Rows).`
+
+## Code Structure
+
+- `sudoku/1` - Main solver predicate with constraint setup
+- `blocks/3` - Recursive checking of 3×3 block constraints
+- `show_domains/1` - Helper to visualize constrained domains
+- `problem/2` - Puzzle definitions
+
+## Learning Resources
+
+This implementation is excellent for understanding:
+- How constraint logic programming works
+- The relationship between constraints and search
+- List pattern matching in Prolog (`[N1,N2,N3|Ns1]`)
+- The `maplist/2` higher-order predicate
+- Domain reduction through constraint propagation
+
+For more on CLP(FD) and constraint programming:
+- [SWI-Prolog CLP(FD) Documentation](https://www.swi-prolog.org/man/clpfd.html)
+- [The Power of Prolog - CLP(FD)](https://www.metalevel.at/prolog/clpfd)
+
+## License
+
+Public domain code. Original Sudoku formulation by Markus Triska (2008).
+
 
 * *find* a single solution
 * *enumerate* all solutions

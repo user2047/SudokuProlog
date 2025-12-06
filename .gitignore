@@ -7,7 +7,3 @@
 # Keep important git files
 !.gitignore
 !README.md
-
-# Keep the figures directory if needed
-!figures/
-!figures/**
