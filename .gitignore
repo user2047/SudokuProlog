@@ -1,0 +1,13 @@
+# Ignore all files by default
+*
+
+# Keep only sudoku.pl (uses built-in SWI-Prolog libraries)
+!sudoku.pl
+
+# Keep important git files
+!.gitignore
+!README.md
+
+# Keep the figures directory if needed
+!figures/
+!figures/**
